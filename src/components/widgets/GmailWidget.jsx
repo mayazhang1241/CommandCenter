@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGoogleLogin } from '@react-oauth/google'
-import { Mail, RefreshCw, ExternalLink } from 'lucide-react'
+import { Mail, RefreshCw, ExternalLink, LogOut } from 'lucide-react'
 import Widget from '../Widget'
 import styles from './GmailWidget.module.css'
 
@@ -63,8 +63,9 @@ export default function GmailWidget() {
     setLoading(true)
     setError(null)
     try {
+      const q = encodeURIComponent('in:inbox (is:unread OR label:important)')
       const listRes = await fetch(
-        `https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q=in:inbox (is:unread OR label:important)`,
+        `https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q=${q}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (listRes.status === 401) {
@@ -74,8 +75,9 @@ export default function GmailWidget() {
       }
       const { messages = [] } = await listRes.json()
 
+      // Fetch details for all returned messages so we can sort by priority across the full set
       const details = await Promise.all(
-        messages.slice(0, MAX_RESULTS).map(({ id }) =>
+        messages.map(({ id }) =>
           fetch(
             `https://www.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
             { headers: { Authorization: `Bearer ${token}` } }
@@ -100,7 +102,7 @@ export default function GmailWidget() {
         }
       })
       parsed.sort((a, b) => b.score - a.score)
-      setEmails(parsed)
+      setEmails(parsed.slice(0, MAX_RESULTS))
     } catch {
       setError('Failed to load emails.')
     } finally {
@@ -109,6 +111,13 @@ export default function GmailWidget() {
   }, [token])
 
   useEffect(() => { fetchEmails() }, [fetchEmails])
+
+  const disconnect = () => {
+    localStorage.removeItem('gmail_token')
+    setToken(null)
+    setEmails([])
+    setError(null)
+  }
 
   const headerAction = token && (
     <div className={styles.actions}>
@@ -126,6 +135,13 @@ export default function GmailWidget() {
         title="Open Gmail"
       >
         <ExternalLink size={13} />
+      </button>
+      <button
+        className={styles.actionBtn}
+        onClick={disconnect}
+        title="Disconnect Gmail"
+      >
+        <LogOut size={13} />
       </button>
     </div>
   )
