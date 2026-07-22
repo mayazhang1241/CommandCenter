@@ -42,7 +42,22 @@ function formatEmailTime(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// Outer shell — only mounts the inner component (which calls useGoogleLogin)
+// when VITE_GOOGLE_CLIENT_ID is set, because the hook requires GoogleOAuthProvider.
 export default function GmailWidget() {
+  if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+    return (
+      <Widget title="Gmail" icon={<Mail size={14} />}>
+        <div className={styles.state}>
+          <span className={styles.stateText}>Add VITE_GOOGLE_CLIENT_ID to .env to enable Gmail</span>
+        </div>
+      </Widget>
+    )
+  }
+  return <GmailWidgetInner />
+}
+
+function GmailWidgetInner() {
   const [token, setToken] = useState(getStoredToken)
   const [emails, setEmails] = useState([])
   const [loading, setLoading] = useState(false)

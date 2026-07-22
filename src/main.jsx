@@ -6,6 +6,8 @@ import { PublicClientApplication } from '@azure/msal-browser'
 import './index.css'
 import App from './App.jsx'
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+
 const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID || 'placeholder',
@@ -15,15 +17,28 @@ const msalConfig = {
   cache: { cacheLocation: 'localStorage' },
 }
 
-const msalInstance = new PublicClientApplication(msalConfig)
-await msalInstance.initialize()
+let msalInstance = null
+try {
+  msalInstance = new PublicClientApplication(msalConfig)
+  await msalInstance.initialize()
+} catch {
+  msalInstance = null
+}
+
+function Providers({ children }) {
+  const withMsal = msalInstance
+    ? <MsalProvider instance={msalInstance}>{children}</MsalProvider>
+    : children
+
+  return googleClientId
+    ? <GoogleOAuthProvider clientId={googleClientId}>{withMsal}</GoogleOAuthProvider>
+    : withMsal
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
-      <MsalProvider instance={msalInstance}>
-        <App />
-      </MsalProvider>
-    </GoogleOAuthProvider>
+    <Providers>
+      <App />
+    </Providers>
   </StrictMode>,
 )
